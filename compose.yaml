@@ -1,0 +1,63 @@
+name: tiktokenizer-py
+
+# Reachable two ways at once:
+#   - http://localhost:${APP_PORT:-8000}, a port published on 127.0.0.1 only, always;
+#   - http://tiktokenizer-py.spark.loc, when the SparkFabrik HTTP proxy is running.
+# The proxy reaches the container over the Docker network, so it does not need the port.
+# "app" and "dev" share both addresses; just up and just up-dev stop the other one first.
+
+services:
+  app:
+    build:
+      context: .
+      target: runtime
+      # Set by just from pyproject.toml and git; plain docker compose labels them "unknown".
+      args:
+        VERSION: ${IMAGE_VERSION:-unknown}
+        REVISION: ${IMAGE_REVISION:-unknown}
+    image: tiktokenizer-py:local
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "127.0.0.1:${APP_PORT:-8000}:8000"
+    environment:
+      VIRTUAL_HOST: tiktokenizer-py.spark.loc
+      VIRTUAL_PORT: "8000"
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      # Prices fetched from the page survive restarts; everything else is read-only.
+      - app-data:/app/data
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    restart: unless-stopped
+
+  dev:
+    profiles: [dev]
+    build:
+      context: .
+      target: dev
+    image: tiktokenizer-py:dev
+    env_file:
+      - path: .env
+        required: false
+    ports:
+      - "127.0.0.1:${APP_PORT:-8000}:8000"
+    environment:
+      VIRTUAL_HOST: tiktokenizer-py.spark.loc
+      VIRTUAL_PORT: "8000"
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+      - ./pyproject.toml:/app/pyproject.toml:ro
+      - ./uv.lock:/app/uv.lock:ro
+      - tiktoken-cache:/app/.tiktoken-cache
+      - app-data:/app/data
+
+volumes:
+  tiktoken-cache:
+  app-data:

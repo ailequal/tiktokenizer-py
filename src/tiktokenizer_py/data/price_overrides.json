@@ -1,0 +1,83 @@
+{
+  "_comment": "Hand-kept corrections to OpenAI's pricing and model pages. See prices.py.",
+  "models": {
+    "gpt-4": {
+      "price_from": "gpt-4-0613",
+      "note": "Priced as gpt-4-0613, the snapshot the gpt-4 alias points to."
+    },
+    "gpt-4-turbo": {
+      "price_from": "gpt-4-turbo-2024-04-09",
+      "note": "Priced as gpt-4-turbo-2024-04-09, the snapshot the gpt-4-turbo alias points to."
+    },
+    "gpt-oss-120b": {
+      "no_price": "Open-weight model: you run it yourself or through another provider, so OpenAI lists no API price."
+    },
+    "gpt-oss-20b": {
+      "no_price": "Open-weight model: you run it yourself or through another provider, so OpenAI lists no API price."
+    },
+    "gpt-4.5-preview": {
+      "no_price": "Deprecated: no longer listed on OpenAI's pricing page."
+    },
+    "chatgpt-4o-latest": {
+      "no_price": "Deprecated: no longer listed on OpenAI's pricing page."
+    },
+    "o1-mini": {
+      "no_price": "Deprecated: no longer listed on OpenAI's pricing page."
+    },
+    "davinci-002": {
+      "no_price": "OpenAI lists only fine-tuning prices for this base model."
+    },
+    "babbage-002": {
+      "no_price": "OpenAI lists only fine-tuning prices for this base model."
+    },
+    "text-embedding-3-large": {
+      "limits": {
+        "max_input": 8192
+      },
+      "limits_source": "https://developers.openai.com/api/docs/guides/embeddings"
+    },
+    "text-embedding-3-small": {
+      "limits": {
+        "max_input": 8192
+      },
+      "limits_source": "https://developers.openai.com/api/docs/guides/embeddings"
+    },
+    "text-embedding-ada-002": {
+      "limits": {
+        "max_input": 8192
+      },
+      "limits_source": "https://developers.openai.com/api/docs/guides/embeddings"
+    }
+  },
+  "retired": [
+    "gpt-4-32k",
+    "text-davinci-003",
+    "text-davinci-002",
+    "text-davinci-001",
+    "text-curie-001",
+    "text-babbage-001",
+    "text-ada-001",
+    "davinci",
+    "curie",
+    "babbage",
+    "ada",
+    "code-davinci-002",
+    "code-davinci-001",
+    "code-cushman-002",
+    "code-cushman-001",
+    "davinci-codex",
+    "cushman-codex",
+    "text-davinci-edit-001",
+    "code-davinci-edit-001",
+    "text-similarity-davinci-001",
+    "text-similarity-curie-001",
+    "text-similarity-babbage-001",
+    "text-similarity-ada-001",
+    "text-search-davinci-doc-001",
+    "text-search-curie-doc-001",
+    "text-search-babbage-doc-001",
+    "text-search-ada-doc-001",
+    "code-search-babbage-code-001",
+    "code-search-ada-code-001"
+  ]
+}

@@ -1,0 +1,580 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <meta name="description" content="See how OpenAI tokenizers split text into tokens, powered by tiktoken.">
+    <title>tiktokenizer-py</title>
+    <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+    <script>
+      // Apply a theme chosen with the theme button before the first paint, so the page never
+      // flashes the other colours. Storage can be blocked; the system setting then applies.
+      try {
+        const theme = JSON.parse(localStorage.getItem("tiktokenizer-py:theme"));
+        if (theme === "light" || theme === "dark") document.documentElement.dataset.theme = theme;
+      } catch {}
+    </script>
+    <link rel="stylesheet" href="/static/css/app.css">
+    <!-- Module scripts run in document order with deferred ones, so main.js registers its
+         alpine:init listener before Alpine starts. -->
+    <script type="module" src="/static/js/main.js"></script>
+    <script defer src="/static/vendor/alpinejs-3.17.5/cdn.min.js"></script>
+  </head>
+  <body>
+    <div x-data="tokenizer" class="page">
+      <header class="topbar" :inert="glossaryOpen">
+        <h1 class="brand">tiktokenizer-py</h1>
+        <p class="tagline">See how OpenAI models split text into tokens.</p>
+        <button type="button" class="btn btn-quiet" @click="cycleTheme()" :aria-label="`Colour theme: ${themeLabel}. Change it`"
+                title="Switch between the system theme, light and dark" x-text="`Theme: ${themeLabel}`">Theme: Auto</button>
+        <button type="button" class="btn btn-quiet" @click="openGlossary()">What am I looking at?</button>
+        <div class="combo" @click.outside="closeCombo(false)" @focusout="comboFocusOut($event)"
+             @keydown.escape.prevent.stop="closeCombo()">
+          <span id="model-label" class="visually-hidden">Model or encoding</span>
+          <button type="button" class="btn combo-trigger" x-ref="comboTrigger"
+                  aria-haspopup="listbox" :aria-expanded="comboOpen" aria-labelledby="model-label model-current"
+                  @click="comboOpen ? closeCombo() : openCombo()">
+            <span id="model-current" x-text="model">{{ default_model }}</span>
+          </button>
+          <div class="combo-popover" x-show="comboOpen" x-cloak>
+            <input type="text" class="combo-search" x-ref="comboSearch" x-model="query"
+                   placeholder="Search models and encodings" autocomplete="off" spellcheck="false"
+                   role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="model-list"
+                   :aria-activedescendant="flatOptions[activeIndex] ? optionDomId(flatOptions[activeIndex]) : ''"
+                   @keydown.arrow-down.prevent="moveActive(1)" @keydown.arrow-up.prevent="moveActive(-1)"
+                   @input="activeIndex = 0" @keydown.enter.prevent="chooseActive()">
+            <ul id="model-list" class="combo-list" role="listbox" aria-label="Models and encodings" x-ref="comboList"
+                tabindex="-1">
+              <template x-for="group in filteredGroups" :key="group.id">
+                <li role="presentation">
+                  <div class="combo-group" role="presentation" x-text="group.label"></div>
+                  <ul role="group" :aria-label="group.label" class="combo-options">
+                    <template x-for="option in group.options" :key="option.key">
+                      <li class="combo-item" role="option" :id="optionDomId(option)"
+                          :aria-selected="option.key === selectedKey"
+                          :class="flatOptions[activeIndex]?.key === option.key && 'active'"
+                          @mousemove="activeIndex = flatOptions.findIndex((o) => o.key === option.key)"
+                          @click="choose(option.id)">
+                        <span x-text="option.id"></span>
+                        <small x-text="optionHint(option.entry)"></small>
+                      </li>
+                    </template>
+                  </ul>
+                </li>
+              </template>
+            </ul>
+            <p class="combo-empty" x-show="flatOptions.length === 0">No model or encoding matches “<span x-text="query"></span>”.</p>
+          </div>
+        </div>
+      </header>
+
+      <main id="app" class="app" data-default-model="{{ default_model }}" :inert="glossaryOpen">
+        <noscript>This page needs JavaScript to tokenize as you type. The JSON API at /api/tokenize works without it.</noscript>
+        <div class="workspace">
+          <section aria-labelledby="input-title">
+            <h2 id="input-title" class="visually-hidden">Input</h2>
+            <div class="tabs" role="tablist" aria-label="Input mode" @keydown="tabKey($event)">
+              <button type="button" class="tab" role="tab" id="tab-text" aria-controls="panel-text"
+                      :aria-selected="mode === 'text'" :tabindex="mode === 'text' ? 0 : -1"
+                      @click="mode = 'text'">Text</button>
+              <button type="button" class="tab" role="tab" id="tab-chat" aria-controls="panel-chat"
+                      :aria-selected="mode === 'chat'" :tabindex="mode === 'chat' ? 0 : -1"
+                      @click="mode = 'chat'" x-show="entry.is_chat">Chat</button>
+              <button type="button" class="tab" role="tab" id="tab-decode" aria-controls="panel-decode"
+                      :aria-selected="mode === 'decode'" :tabindex="mode === 'decode' ? 0 : -1"
+                      @click="mode = 'decode'">Decode</button>
+            </div>
+
+            <div id="panel-text" role="tabpanel" aria-labelledby="tab-text" x-show="mode === 'text'">
+              <label class="visually-hidden" for="text-input">Text to tokenize</label>
+              <textarea id="text-input" class="input" x-model="text" spellcheck="false"
+                        placeholder="Type or paste text here"></textarea>
+            </div>
+
+            <div id="panel-chat" role="tabpanel" aria-labelledby="tab-chat" x-show="mode === 'chat'" x-cloak>
+              <div class="chat">
+                <template x-for="(row, index) in messages" :key="row.key">
+                  <div class="chat-row">
+                    <div class="stack role-col">
+                      <label class="visually-hidden" :for="'role-' + row.key">Role</label>
+                      <select class="select" :id="'role-' + row.key" x-model="row.role">
+                        <template x-for="role in page.roles" :key="role">
+                          <option :value="role" x-text="role" :selected="role === row.role"></option>
+                        </template>
+                      </select>
+                      <button type="button" class="btn-quiet btn" x-show="!row.withName"
+                              @click="row.withName = true; $nextTick(() => document.getElementById('name-' + row.key).focus())">Add name</button>
+                    </div>
+                    <div class="stack content-col">
+                      <div class="name-line" x-show="row.withName">
+                        <label class="visually-hidden" :for="'name-' + row.key">Name</label>
+                        <input type="text" class="field" :id="'name-' + row.key" x-model="row.name"
+                               maxlength="64" placeholder="Author name, added after the role">
+                        <button type="button" class="btn btn-quiet" @click="row.withName = false; row.name = ''"
+                                aria-label="Remove name">Clear</button>
+                      </div>
+                      <label class="visually-hidden" :for="'content-' + row.key">Message content</label>
+                      <textarea :id="'content-' + row.key" rows="2" x-model="row.content" spellcheck="false"
+                                placeholder="Message content"></textarea>
+                    </div>
+                    <button type="button" class="btn btn-quiet remove" @click="removeMessage(index)"
+                            :aria-label="'Remove ' + row.role + ' message'">Remove</button>
+                  </div>
+                </template>
+                <p class="hint">
+                  Messages are wrapped in
+                  <button type="button" class="help-link" @click="openGlossary('framing')">chat framing</button>
+                  before they are tokenized. A
+                  <button type="button" class="help-link" @click="openGlossary('name')">name</button>
+                  is added after the role in the header.
+                </p>
+                <div>
+                  <button type="button" class="btn" @click="addMessage()"
+                          :disabled="messages.length >= page.limits.max_messages">Add message</button>
+                </div>
+              </div>
+            </div>
+
+            <div id="panel-decode" role="tabpanel" aria-labelledby="tab-decode" x-show="mode === 'decode'" x-cloak>
+              <label class="visually-hidden" for="decode-input">Token ids to decode</label>
+              <textarea id="decode-input" class="input" x-model="decodeInput" spellcheck="false"
+                        placeholder="Paste token ids, for example 13225, 2375, 0"></textarea>
+              <p class="hint">Ids are decoded with <span class="mono" x-text="activeEncoding"></span>.
+                <button type="button" class="help-link" @click="openGlossary('decode')">How decoding works</button></p>
+            </div>
+
+            <div class="toolbar">
+              <label class="visually-hidden" for="example-select">Load an example</label>
+              <select id="example-select" class="select" x-show="mode !== 'decode'"
+                      @change="loadExample($event.target.value); $event.target.value = ''">
+                <option value="">Load an example…</option>
+                <template x-for="example in page.examples" :key="example.id">
+                  <option :value="example.id" x-text="example.title"></option>
+                </template>
+              </select>
+              <span class="check-group" x-show="mode !== 'decode'">
+                <label class="check">
+                  <input type="checkbox" :checked="!allowSpecial" @change="allowSpecial = !$event.target.checked">
+                  Treat special tokens as text
+                </label>
+                <button type="button" class="help-link" @click="openGlossary('special-as-text')"
+                        aria-label="What does treating special tokens as text do?">?</button>
+              </span>
+              <span class="spacer"></span>
+              <button type="button" class="btn" @click="copyLink()" title="Copy a link that opens this page with the same input">Copy link</button>
+            </div>
+            <div class="share-fallback" x-show="shareLink" x-cloak>
+              <label for="share-link">Copying is blocked here. Copy this link by hand:</label>
+              <input id="share-link" class="field" readonly :value="shareLink" @focus="$event.target.select()">
+            </div>
+            <p class="error" x-show="notice" x-text="notice" role="status" x-cloak></p>
+            <p class="error" x-show="error" x-text="error" role="alert" x-cloak></p>
+
+            <details class="panel" open x-show="mode !== 'decode'" @toggle="toggleExplain($event.target.open)">
+              <summary>How the tokenizer works</summary>
+              <p class="hint">
+                A tokenizer works in two stages. Here they are, applied to the text you entered.
+                <button type="button" class="help-link" @click="openGlossary('bpe')">More about byte pair encoding</button>
+              </p>
+              <p class="error" x-show="explainError" x-text="explainError"></p>
+
+              <h3 class="step-title">1. Split the text into
+                <button type="button" class="help-link" @click="openGlossary('chunk')">chunks</button></h3>
+              <p class="hint">
+                The <button type="button" class="help-link" @click="openGlossary('split-regex')">split pattern</button>
+                cuts the text into words, numbers, punctuation and spaces. A token never crosses a chunk border.
+                The small number on each chunk is how many tokens it becomes. Click a chunk to see step 2.
+              </p>
+              <p class="hint" x-show="totalChunks > chunkCount" x-cloak>
+                Showing the first <span x-text="formatCount(chunkCount)"></span> of
+                <span x-text="formatCount(totalChunks)"></span> chunks.
+              </p>
+              <div class="chunks" id="chunks-body" x-ignore data-empty="Enter some text to see its chunks."></div>
+
+              <h3 class="step-title">2. <button type="button" class="help-link" @click="openGlossary('merge')">Merge</button>
+                bytes into tokens</h3>
+              <p class="hint" x-show="chunkText && chunkSpecial" x-cloak>
+                <span class="mono" x-text="chunkText"></span> is a
+                <button type="button" class="help-link" @click="openGlossary('special-token')">special token</button>:
+                it skips merging and is always the single id <span class="mono" x-text="chunkTokens.join(', ')"></span>.
+              </p>
+              <p class="hint" x-show="chunkText && mergeTooLong" x-cloak>
+                This chunk is longer than 120 bytes, too long to replay here. It becomes the tokens
+                <span class="mono" x-text="chunkTokens.join(', ')"></span>.
+              </p>
+              <p class="hint" x-show="chunkText && !chunkSpecial && !mergeTooLong" x-cloak>
+                The chunk <span class="mono" x-text="visible(chunkText)"></span> starts as single bytes. At each step
+                the neighbouring pair that comes first in the merge list is joined (highlighted).
+                <span x-text="mergeCount === 1 ? '1 merge' : mergeCount + ' merges'"></span> later no known pair is left.
+              </p>
+              <p class="error" x-show="mergeError" x-text="mergeError"></p>
+              <ol class="merges" id="merges-body" x-ignore></ol>
+
+              <h3 class="step-title">3. Look up the
+                <button type="button" class="help-link" @click="openGlossary('token-id')">ids</button></h3>
+              <p class="hint">
+                Every piece left is in the vocabulary, and its rank in the merge list is its token id
+                (last row above). The ids of all chunks, in order, are the token ids on the right.
+              </p>
+            </details>
+
+            <details class="panel" open x-show="mode === 'text'" @toggle="toggleCompare($event.target.open)">
+              <summary>Compare encodings</summary>
+              <p class="hint">
+                The same text under every encoding OpenAI has used, newest family first. Newer encodings have bigger
+                vocabularies and usually need fewer tokens.
+                <button type="button" class="help-link" @click="openGlossary('compare')">Why they differ</button>
+              </p>
+              <p class="error" x-show="compareError" x-text="compareError"></p>
+              <table class="compare">
+                <thead>
+                  <tr>
+                    <th scope="col">Encoding</th>
+                    <th scope="col">Tokens</th>
+                    <th scope="col"><button type="button" class="help-link" @click="openGlossary('chars-per-token')">Characters per token</button></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="row in compareRows" :key="row.encoding">
+                    <tr :class="row.encoding === activeEncoding && 'current'">
+                      <th scope="row">
+                        <button type="button" class="link-button mono" @click="choose(row.encoding)"
+                                :title="'Switch to ' + row.encoding" x-text="row.encoding"></button>
+                        <small x-text="modelsLabel(row.models)"></small>
+                      </th>
+                      <td class="bar-cell">
+                        <span class="bar" :style="`width: calc((100% - 8px) * ${row.count / compareMax})`"></span>
+                        <span class="bar-value" x-text="formatCount(row.count)"></span>
+                      </td>
+                      <td x-text="row.characters_per_token?.toFixed(2) ?? ''"></td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+              <p class="hint">Click an encoding to switch to it.</p>
+            </details>
+          </section>
+
+          <section aria-labelledby="output-title">
+            <h2 id="output-title" class="visually-hidden">Tokens</h2>
+            <div x-show="mode !== 'decode'">
+            <div class="summary" aria-live="polite">
+              <p class="count"><span x-text="formatCount(count)">0</span> <button type="button" class="help-link count-label" @click="openGlossary('token-count')" x-text="count === 1 ? 'token' : 'tokens'">tokens</button></p>
+              <button type="button" class="badge badge-estimate" x-show="isEstimate" x-cloak
+                      @click="openGlossary('estimate')" title="What does estimate mean?">estimate</button>
+              <button type="button" class="badge badge-exact" x-show="!isEstimate && count > 0" x-cloak
+                      @click="openGlossary('estimate')" title="Why is this exact?">exact</button>
+            </div>
+            <p class="stats" x-show="characters > 0" x-cloak>
+              <span x-text="formatCount(characters) + (characters === 1 ? ' character' : ' characters')"></span>,
+              <span x-text="formatCount(bytes) + (bytes === 1 ? ' byte' : ' bytes')"></span>,
+              <span x-text="charsPerToken"></span>
+              <button type="button" class="help-link" @click="openGlossary('chars-per-token')">characters per token</button>
+            </p>
+            <div class="meter" x-show="usableInput > 0" x-cloak>
+              <div class="meter-bar" role="meter" aria-label="Share of the usable input" aria-valuemin="0"
+                   :aria-valuemax="usableInput" :aria-valuenow="Math.min(count, usableInput)" :aria-valuetext="meterText">
+                <span class="meter-fill" :class="meterLevel" :style="`width: ${Math.min(100, meterPct)}%`"></span>
+                <span class="meter-mark" :style="`left: ${compactAt}%`" title="Compact warning"></span>
+              </div>
+              <p class="meter-text">
+                <span x-text="meterText"></span>.
+                <button type="button" class="help-link" @click="openGlossary('context-window')">Context window</button>:
+                <span x-text="meterDetail"></span>.
+                <button type="button" class="help-link" @click="meterSettings = !meterSettings"
+                        :aria-expanded="meterSettings" aria-controls="meter-settings">Adjust</button>
+              </p>
+              <p class="meter-alert" :class="meterLevel" x-show="meterLevel !== 'ok'" x-text="meterMessage" role="status"></p>
+              <div class="meter-settings" id="meter-settings" x-show="meterSettings" x-cloak>
+                <label>Keep for the reply and reasoning
+                  <input type="number" class="field" min="0" step="1000" x-model.number="reserve"> tokens</label>
+                <label>Warn to
+                  <button type="button" class="help-link" @click="openGlossary('compaction')">compact</button> at
+                  <input type="number" class="field" min="1" max="100" step="5" x-model.number="compactPct"> %</label>
+              </div>
+            </div>
+            <p class="hint" x-show="mode !== 'decode' && usableInput === 0" x-cloak x-text="noLimitsMessage"></p>
+            <p class="note" x-show="note" x-text="note" x-cloak></p>
+
+            <h3 class="pane-title">
+              <button type="button" class="help-link" @click="openGlossary('segment')">Text split into tokens</button>
+              <button type="button" class="help-link legend" @click="openGlossary('special-token')"><span class="legend-swatch"></span>special token</button>
+            </h3>
+            <pre class="pane segments" :class="loading && 'loading'"><span class="pane-body" id="segments-body" x-ignore
+                 data-empty="Type or paste text to see how it splits into tokens."></span></pre>
+
+            <p class="hint" x-show="shownSegments < totalSegments" x-cloak>
+              Showing the first <span x-text="formatCount(shownSegments)"></span> of
+              <span x-text="formatCount(totalSegments)"></span> segments to keep the page responsive.
+              The count above covers all of them.
+              <button type="button" class="help-link" @click="showAllSegments()">Show all</button>
+            </p>
+
+            <p class="hint">Hover a segment to find its ids. Click it to see its tokens byte by byte. With the keyboard,
+              Tab into the text, move with the arrow keys and press Enter.</p>
+
+            <h3 class="pane-title">
+              <button type="button" class="help-link" @click="openGlossary('token-id')">Token ids</button>
+              <button type="button" class="btn btn-small" @click="copyIds()" :disabled="count === 0">Copy ids</button>
+            </h3>
+            <pre class="pane ids" :class="loading && 'loading'"><span class="pane-body" id="ids-body" x-ignore
+                 data-empty="Token ids appear here."></span></pre>
+
+            <div class="detail" x-show="selected !== null" x-cloak>
+              <div class="detail-head">
+                <h3 class="pane-title">Selected segment <span class="mono" x-text="visible(selectedText)"></span></h3>
+                <button type="button" class="btn btn-quiet" @click="clearSelection()">Close</button>
+              </div>
+              <p class="hint" x-text="selectedPieces.length === 1 ? 'This segment is a single token.' : 'This segment is ' + selectedPieces.length + ' tokens. Together their bytes form the text.'"></p>
+              <p class="error" x-show="selectedError" x-text="selectedError"></p>
+              <div class="table-wrap">
+                <table class="decode-table">
+                  <thead><tr><th scope="col">Id</th><th scope="col">Bytes (hex)</th><th scope="col">Text</th><th scope="col">Note</th></tr></thead>
+                  <tbody>
+                    <template x-for="(piece, i) in selectedPieces" :key="i">
+                      <tr :class="piece.special && 'special'">
+                        <td x-text="piece.id"></td>
+                        <td x-text="piece.bytes"></td>
+                        <td x-text="visible(piece.text)"></td>
+                        <td>
+                          <button type="button" class="help-link" x-show="piece.partial" @click="openGlossary('partial-character')">part of a character</button>
+                          <button type="button" class="help-link" x-show="piece.special" @click="openGlossary('special-token')">special token</button>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="toolbar">
+              <span class="check-group">
+                <label class="check"><input type="checkbox" x-model="showWhitespace"> Show whitespace</label>
+                <button type="button" class="help-link" @click="openGlossary('whitespace')" aria-label="What does show whitespace do?">?</button>
+              </span>
+            </div>
+
+            <details class="panel cost" open>
+              <summary>Cost estimate</summary>
+              <p class="hint">
+                A rough estimate in US dollars from reference prices, which can change: check
+                <a :href="pricingPage" target="_blank" rel="noopener noreferrer">OpenAI's pricing page</a>.
+                <button type="button" class="help-link" @click="openGlossary('cost-estimate')">How it is calculated</button>
+              </p>
+              <div class="price-source">
+                <span x-text="pricesLabel"></span>
+                <button type="button" class="btn btn-small" @click="refreshPrices()" :disabled="refreshing"
+                        x-text="refreshing ? 'Fetching…' : 'Fetch latest prices'"></button>
+              </div>
+              <div x-show="refreshMessage" x-cloak role="status">
+                <p :class="refreshError ? 'error' : 'hint'" x-text="refreshMessage"></p>
+                <ul class="hint problems" x-show="refreshProblems.length">
+                  <template x-for="problem in refreshProblems" :key="problem"><li x-text="problem"></li></template>
+                </ul>
+              </div>
+
+              <template x-if="entry.kind !== 'model'">
+                <p class="hint">Pick a model to estimate its cost.</p>
+              </template>
+              <template x-if="entry.kind === 'model'">
+                <div>
+                  <p class="hint" x-show="priceNote" x-text="priceNote"></p>
+                  <div class="cost-row">
+                    <label>
+                      <button type="button" class="help-link" @click="openGlossary('price-modes')">Price mode</button>
+                      <select class="select" x-model="priceMode">
+                        <template x-for="mode in priceModes" :key="mode">
+                          <option :value="mode" x-text="modeLabel(mode)" :selected="mode === priceMode"></option>
+                        </template>
+                      </select>
+                    </label>
+                    <button type="button" class="btn btn-quiet" x-show="anyCustom" @click="resetPrices()">Reset to reference prices</button>
+                  </div>
+                  <div class="price-scroll">
+                    <table class="price-table" :class="hasWritePrices && 'wide'">
+                      <caption class="visually-hidden">Prices in US dollars per 1 million tokens</caption>
+                      <thead>
+                        <tr>
+                          <th scope="col">USD per 1M tokens</th>
+                          <template x-for="field in priceFields" :key="field"><th scope="col" x-text="fieldLabel(field)"></th></template>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <template x-for="row in (hasLongPrices ? ['short', 'long'] : ['short'])" :key="row">
+                          <tr :class="usesLongPrices === (row === 'long') && 'active'">
+                            <th scope="row" x-text="row === 'long' ? `Above ${formatCount(longThreshold / 1000)}K input` : (hasLongPrices ? `Up to ${formatCount(longThreshold / 1000)}K input` : 'Price')"></th>
+                            <template x-for="field in priceFields" :key="field">
+                              <td>
+                                <input type="number" class="field price-input" min="0" step="any" placeholder="none"
+                                       :aria-label="`${row === 'long' ? 'Long-request ' : ''}${fieldLabel(field)} price`"
+                                       :value="price(row, field) ?? ''" @change="setPrice(row, field, $event.target.value)">
+                                <small class="custom" x-show="isCustom(row, field)"
+                                       x-text="`custom, reference ${formatPrice(referencePrice(row, field))}`"></small>
+                              </td>
+                            </template>
+                          </tr>
+                        </template>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div class="cost-row inputs">
+                    <label>Input tokens per request
+                      <input type="number" class="field" min="0" step="1000" :value="inputTokens"
+                             @change="setInputTokens($event.target.value)"></label>
+                    <label>Expected output tokens
+                      <input type="number" class="field" min="0" step="100" x-model.number="output"></label>
+                    <label>Cached share of input
+                      <span class="with-unit"><input type="number" class="field" min="0" max="100" step="5"
+                             x-model.number="cachedPct" :disabled="cost && cost.noCachedPrice"> %</span></label>
+                    <label>Requests per day
+                      <input type="number" class="field" min="0" step="1" x-model.number="perDay"></label>
+                    <label x-show="hasWritePrices">Cache lifetime
+                      <select class="select" x-model="cacheTtl">
+                        <option value="30m">30 minutes</option>
+                        <option value="12h">12 hours</option>
+                      </select></label>
+                    <label x-show="hasWritePrices">Cache writes per day
+                      <input type="number" class="field" min="0" step="1" x-model.number="writesPerDay"></label>
+                  </div>
+                  <p class="hint" x-show="inputOverride !== null" x-cloak>
+                    Estimating with a typed input size.
+                    <button type="button" class="help-link" @click="inputOverride = null"
+                            x-text="`Use the page's ${formatCount(count)} tokens`"></button>
+                  </p>
+                  <p class="hint">Output includes hidden reasoning, which is billed as output.
+                    <span x-show="hasWritePrices">This model also charges for cache writes: each write stores the cached
+                      part of the input at the write price of the lifetime you pick, instead of reading it.</span>
+                    <span x-show="cost && cost.noCachedPrice">This model has no cached-input price.</span>
+                    <span x-show="cost && cost.noOutputPrice">This model has no output price.</span></p>
+
+                  <p class="hint long-note" x-show="usesLongPrices" x-cloak>
+                    The input is over <span x-text="formatCount(longThreshold)"></span> tokens, so the long-request
+                    prices apply to the whole request.
+                  </p>
+                  <template x-if="cost">
+                    <div class="cost-result" aria-live="polite">
+                      <dl class="cost-totals">
+                        <div><dt>Per request</dt><dd x-text="formatUsd(cost.perRequest)"></dd></div>
+                        <div><dt>Per day</dt><dd x-text="formatUsd(cost.perDay)"></dd></div>
+                        <div><dt>Per month (30 days)</dt><dd x-text="formatUsd(cost.perMonth)"></dd></div>
+                      </dl>
+                      <ul class="cost-lines">
+                        <template x-for="line in cost.lines" :key="line.label">
+                          <li x-text="`${line.label}: ${formatCount(line.tokens)} tokens × ${formatPrice(line.price)} per 1M = ${formatUsd(line.cost)}`"></li>
+                        </template>
+                        <li x-show="cost.writeLine" x-text="cost.writeLine ? `Cache writes: ${formatCount(cost.writeLine.writes)} per day × ${formatCount(cost.writeLine.tokens)} tokens at ${formatPrice(cost.writeLine.price)} instead of ${formatPrice(cost.writeLine.readPrice)} per 1M = +${formatUsd(cost.writeLine.cost)} per day` : ''"></li>
+                      </ul>
+                    </div>
+                  </template>
+                  <p class="hint" x-show="!cost">No reference price for this model: enter your own prices above to estimate.</p>
+                </div>
+              </template>
+            </details>
+            </div>
+
+            <div x-show="mode === 'decode'" x-cloak>
+              <div class="summary" aria-live="polite">
+                <p class="count"><span x-text="formatCount(decodeTotal)"></span> <span class="count-label" x-text="decodeTotal === 1 ? 'token' : 'tokens'"></span></p>
+              </div>
+              <h3 class="pane-title">Decoded text</h3>
+              <pre class="pane" :class="loading && 'loading'" x-text="decodeText" data-empty="Paste token ids on the left to see the text they stand for."></pre>
+              <h3 class="pane-title">Token by token</h3>
+              <div class="table-wrap">
+                <table class="decode-table">
+                  <thead><tr><th scope="col">Id</th><th scope="col">Bytes (hex)</th><th scope="col">Text</th><th scope="col">Note</th></tr></thead>
+                  <tbody>
+                    <template x-for="(piece, i) in decodePieces" :key="i">
+                      <tr :class="piece.special && 'special'">
+                        <td x-text="piece.id"></td>
+                        <td x-text="piece.bytes"></td>
+                        <td x-text="visible(piece.text)"></td>
+                        <td>
+                          <button type="button" class="help-link" x-show="piece.partial" @click="openGlossary('partial-character')">part of a character</button>
+                          <button type="button" class="help-link" x-show="piece.special" @click="openGlossary('special-token')">special token</button>
+                        </td>
+                      </tr>
+                    </template>
+                  </tbody>
+                </table>
+              </div>
+              <p class="hint" x-show="decodeTotal > decodePieces.length">
+                Showing the first <span x-text="decodePieces.length"></span> of <span x-text="decodeTotal"></span> tokens.
+              </p>
+            </div>
+
+            <details class="info" @toggle="toggleInfo($event.target.open)">
+              <summary>About the <span class="mono" x-text="activeEncoding"></span> encoding</summary>
+              <p class="hint">
+                An <button type="button" class="help-link" @click="openGlossary('encoding')">encoding</button>
+                is the rule set behind the token ids. All of them use
+                <button type="button" class="help-link" @click="openGlossary('bpe')">byte pair encoding</button>.
+              </p>
+              <p class="error" x-show="infoError" x-text="infoError"></p>
+              <template x-if="info">
+                <div>
+                  <dl>
+                    <dt><button type="button" class="help-link" @click="openGlossary('vocabulary')">Vocabulary size</button></dt>
+                    <dd x-text="formatCount(info.n_vocab) + ' tokens'"></dd>
+                    <dt>Source</dt>
+                    <dd x-text="info.source === 'derived' ? info.base + ' from tiktoken, plus chat special tokens' : 'tiktoken'"></dd>
+                    <dt>End of text</dt>
+                    <dd class="mono" x-text="info.eot_token ?? 'none'"></dd>
+                    <dt><button type="button" class="help-link" @click="openGlossary('special-token')">Special tokens</button></dt>
+                    <dd>
+                      <ul class="token-list">
+                        <template x-for="[token, id] in specialTokenList" :key="token">
+                          <li class="mono"><span x-text="token"></span> <span class="count-label" x-text="id"></span></li>
+                        </template>
+                      </ul>
+                      <p class="hint" x-show="info.reserved_tokens" x-text="info.reserved_tokens ? `Plus ${formatCount(info.reserved_tokens.count)} reserved tokens named <|reserved_N|>, where N is the id, between ids ${info.reserved_tokens.first} and ${info.reserved_tokens.last}.` : ''"></p>
+                    </dd>
+                    <dt><button type="button" class="help-link" @click="openGlossary('split-regex')">Split pattern</button></dt>
+                    <dd><code x-text="info.pat_str"></code></dd>
+                    <dt>Used by</dt>
+                    <dd x-text="info.models.length ? info.models.join(', ') : 'No model in the list uses it directly.'"></dd>
+                  </dl>
+                </div>
+              </template>
+            </details>
+          </section>
+        </div>
+      </main>
+
+      <footer class="footer" :inert="glossaryOpen">
+        <p>
+          Tokenization by <a href="https://github.com/openai/tiktoken">tiktoken</a> {{ tiktoken_version }}.
+          Inspired by <a href="https://github.com/dqbd/tiktokenizer">dqbd/tiktokenizer</a>.
+          <a href="/docs">API docs</a>. <a href="https://github.com/ailequal/tiktokenizer-py">Source on GitHub</a>.
+        </p>
+      </footer>
+
+      <p class="toast" role="status" aria-live="polite" x-show="status" x-text="status" x-cloak></p>
+
+      <!-- While the glossary is open, the page behind it is inert: Tab stays inside the drawer. -->
+      <div class="backdrop" x-show="glossaryOpen" x-cloak @click="closeGlossary()"></div>
+      <aside class="drawer" x-show="glossaryOpen" x-cloak role="dialog" aria-modal="true" aria-labelledby="glossary-title"
+             x-ref="glossaryBody" @keydown.escape.window="closeGlossary()">
+        <div class="drawer-head">
+          <h2 id="glossary-title">What am I looking at?</h2>
+          <button type="button" class="btn" x-ref="glossaryClose" @click="closeGlossary()">Close</button>
+        </div>
+        <p class="drawer-intro">
+          Language models read text as numbered pieces called tokens. This page shows how a model's
+          tokenizer cuts your text into those pieces. Plain-language notes for every part of the page:
+        </p>
+        <dl class="glossary">
+          <template x-for="item in page.glossary" :key="item.id">
+            <div>
+              <dt :id="'g-' + item.id" :class="glossaryFlash === item.id && 'flash'" x-text="item.title"></dt>
+              <dd x-text="item.text"></dd>
+            </div>
+          </template>
+        </dl>
+      </aside>
+    </div>
+
+    <script id="page-data" type="application/json">{{ page_data | tojson }}</script>
+  </body>
+</html>

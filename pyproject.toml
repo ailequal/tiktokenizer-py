@@ -1,0 +1,65 @@
+[project]
+name = "tiktokenizer-py"
+version = "1.0.0"
+description = "Web playground for OpenAI tiktoken tokenizers"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+    { name = "Elia Pari", email = "37016865+ailequal@users.noreply.github.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "tiktoken>=0.14.0",
+    "fastapi>=0.159.1",
+    "uvicorn[standard]>=0.54.0",
+    "pydantic>=2.14.1",
+    "jinja2>=3.1.6",
+    "regex>=2026.9.29",
+]
+
+[project.urls]
+Homepage = "https://github.com/ailequal/tiktokenizer-py"
+Repository = "https://github.com/ailequal/tiktokenizer-py"
+Issues = "https://github.com/ailequal/tiktokenizer-py/issues"
+Changelog = "https://github.com/ailequal/tiktokenizer-py/blob/main/CHANGELOG.md"
+
+[project.scripts]
+tiktokenizer-py = "tiktokenizer_py.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "hypothesis>=6.170.5",
+    "ruff>=0.17.1",
+    "mypy>=2.4.0",
+    "types-regex>=2026.9.29.20261017",
+    "httpx2>=2.16.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "N", "SIM", "RUF"]
+
+[tool.mypy]
+strict = true
+python_version = "3.14"
+packages = ["tiktokenizer_py"]
+mypy_path = "src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.coverage.run]
+source = ["tiktokenizer_py"]
+branch = true

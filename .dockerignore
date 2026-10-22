@@ -1,0 +1,11 @@
+# Allowlist: only what the image build needs.
+*
+!pyproject.toml
+!uv.lock
+!README.md
+!LICENSE
+!.python-version
+!src/
+!scripts/warm_cache.py
+**/__pycache__
+**/*.py[cod]
