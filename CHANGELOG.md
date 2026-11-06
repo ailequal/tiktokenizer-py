@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.1] - 2026-11-06
+
 ### Changed
 
 - Updated pydantic to 2.14.3, which fixes two validation bypasses for extra data (GHSA-qpmf-fgh3-ff25,
@@ -62,5 +64,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `justfile` recipes for setup, development, quality checks, Docker and price updates.
 - README and `GUIDE.md`.
 
-[Unreleased]: https://github.com/ailequal/tiktokenizer-py/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/ailequal/tiktokenizer-py/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/ailequal/tiktokenizer-py/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/ailequal/tiktokenizer-py/releases/tag/v1.0.0
