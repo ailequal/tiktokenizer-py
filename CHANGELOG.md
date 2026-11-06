@@ -7,6 +7,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Updated pydantic to 2.14.3, which fixes two validation bypasses for extra data (GHSA-qpmf-fgh3-ff25,
+  GHSA-3r8g-cqwr-jr29).
+- Updated FastAPI to 0.162.0, Starlette to 1.10.0 and the remaining locked dependencies to their latest releases.
+- Updated the vendored Swagger UI to 5.34.1.
+- Updated the Docker base images to Python 3.14.10 and uv 0.13.7.
+- Refreshed the bundled price snapshot from OpenAI's pricing page (2026-11-06).
+- gpt-4.1-nano, o4-mini, o3-mini, o1, o1-pro, gpt-4-turbo, gpt-4 and gpt-3.5-turbo show a "no longer listed" note
+  instead of prices, since OpenAI's pricing page dropped them; their context limits are kept.
+
+### Fixed
+
+- "How the tokenizer works" chunks now always carry tiktoken's own tokens, also for code points that the `regex`
+  module and tiktoken's Rust regex classify differently because of their Unicode table versions.
+
 ## [1.0.0] - 2026-10-22
 
 ### Added

@@ -12,6 +12,12 @@ tiktoken works in two stages:
 
 This module replays both stages with the encoding's own data, so the result equals what
 ``Encoding.encode`` returns (the tests check this).
+
+The split pattern is evaluated by the ``regex`` module, tiktoken evaluates it in Rust. The two
+ship different Unicode tables, so a code point that one assigns to a letter category and the
+other does not (usually one assigned in a recent Unicode version) can be cut differently. The
+tokens are always taken from tiktoken: when the replayed chunks disagree with it, the chunks are
+realigned on tiktoken's token borders (see ``_realign``).
 """
 
 from __future__ import annotations
@@ -98,8 +104,15 @@ def split_chunks(
     chunks: list[Chunk] = []
 
     def ordinary(text: str) -> None:
-        for match in pattern.findall(text):
-            chunks.append(Chunk(text=match, special=False, tokens=chunk_tokens(enc, match)))
+        guessed = [
+            Chunk(text=match, special=False, tokens=chunk_tokens(enc, match))
+            for match in pattern.findall(text)
+        ]
+        expected = enc.encode_ordinary(text)
+        if [t for c in guessed for t in c.tokens] == expected:
+            chunks.extend(guessed)
+        else:
+            chunks.extend(_realign(enc, guessed, expected))
 
     for text, framing in parts:
         if framing:
@@ -116,3 +129,59 @@ def split_chunks(
             start = found.end()
         ordinary(text[start:])
     return chunks
+
+
+def _realign(enc: tiktoken.Encoding, guessed: list[Chunk], expected: list[int]) -> list[Chunk]:
+    """Rebuild ``guessed`` so that its tokens are exactly ``expected``, tiktoken's own result.
+
+    Tokens never cross a chunk border, so a border that falls inside one of tiktoken's tokens
+    is wrong: such chunks are joined with the next until the border lands between two tokens.
+    A joined run is then cut again between tokens wherever the pieces are whole characters
+    and reproduce their tokens on their own, so the merge replay of each chunk stays exact.
+    When that is not possible the run stays one chunk carrying tiktoken's tokens.
+    """
+    token_bytes = [enc.decode_single_token_bytes(t) for t in expected]
+    ends: dict[int, int] = {}  # byte offset where a token ends -> index of the next token
+    pos = 0
+    for i, raw in enumerate(token_bytes):
+        pos += len(raw)
+        ends[pos] = i + 1
+
+    result: list[Chunk] = []
+    offset = 0
+    first = 0  # index of the first token of the current run
+    run: list[Chunk] = []
+    for chunk in guessed:
+        run.append(chunk)
+        offset += len(chunk.text.encode("utf-8"))
+        if offset not in ends:
+            continue
+        last = ends[offset]
+        slice_ = expected[first:last]
+        if len(run) == 1 and run[0].tokens == slice_:
+            result.append(run[0])
+        else:
+            result.extend(_cut(enc, "".join(c.text for c in run), token_bytes[first:last], slice_))
+        first, run = last, []
+    return result
+
+
+def _cut(
+    enc: tiktoken.Encoding, text: str, token_bytes: list[bytes], tokens: list[int]
+) -> list[Chunk]:
+    """Cut ``text`` between its tokens into chunks that each reproduce their tokens."""
+    pieces: list[Chunk] = []
+    acc = bytearray()
+    start = 0
+    for i, raw in enumerate(token_bytes):
+        acc += raw
+        try:
+            piece = acc.decode("utf-8")
+        except UnicodeDecodeError:
+            continue  # the border falls inside a character; keep going
+        piece_tokens = tokens[start : i + 1]
+        if chunk_tokens(enc, piece) != piece_tokens:
+            return [Chunk(text=text, special=False, tokens=tokens)]
+        pieces.append(Chunk(text=piece, special=False, tokens=piece_tokens))
+        acc, start = bytearray(), i + 1
+    return pieces

@@ -46,6 +46,37 @@ def test_chunks_reproduce_chat_tokens(model: str, allow: bool) -> None:
     assert flat(chunks) == segments.encode_parts(enc, rendered.parts, allow_special=allow)
 
 
+def test_chunks_follow_tiktoken_when_unicode_tables_differ() -> None:
+    # U+3D000 is unassigned in the Unicode tables tiktoken's Rust regex uses, but a letter in
+    # the regex module's newer ones, so the two split the text differently. The tokens must
+    # still be tiktoken's, and every chunk must reproduce its own tokens for the merge replay.
+    enc = tiktoken.get_encoding("o200k_base")
+    text = "\U0003d000:A"
+    chunks = explain.split_chunks(enc, [(text, False)], allow_special=False)
+    assert flat(chunks) == enc.encode_ordinary(text) == [172, 121, 222, 222, 25, 32]
+    assert "".join(c.text for c in chunks) == text
+    assert [c.text for c in chunks] == ["\U0003d000", ":", "A"]
+    for chunk in chunks:
+        assert explain.chunk_tokens(enc, chunk.text) == chunk.tokens
+
+
+def test_realign_joins_chunks_cut_inside_a_token() -> None:
+    enc = tiktoken.get_encoding("o200k_base")
+    expected = enc.encode_ordinary("hello")
+    guessed = [explain.Chunk("hel", False, [1]), explain.Chunk("lo", False, [2])]
+    assert explain._realign(enc, guessed, expected) == [explain.Chunk("hello", False, expected)]
+
+
+def test_realign_keeps_a_run_whole_when_no_cut_reproduces_the_tokens() -> None:
+    # Synthetic: tiktoken never splits "é" into its two bytes, but if the tokens of a run cannot
+    # be reproduced piece by piece the run must stay one chunk carrying exactly those tokens.
+    enc = tiktoken.get_encoding("o200k_base")
+    ranks = enc._mergeable_ranks
+    two_bytes = [ranks[b"\xc3"], ranks[b"\xa9"]]
+    guessed = [explain.Chunk("é", False, explain.chunk_tokens(enc, "é"))]
+    assert explain._realign(enc, guessed, two_bytes) == [explain.Chunk("é", False, two_bytes)]
+
+
 def test_split_pattern_chunks() -> None:
     enc = tiktoken.get_encoding("o200k_base")
     chunks = explain.split_chunks(

@@ -1,6 +1,6 @@
 {
   "schema": 2,
-  "fetched_at": "2026-10-22T13:37:17Z",
+  "fetched_at": "2026-11-06T16:54:38Z",
   "sources": {
     "pricing": "https://developers.openai.com/api/docs/pricing.md",
     "models": "https://developers.openai.com/api/docs/models/{model}.md",
@@ -984,33 +984,8 @@
       }
     },
     "gpt-4.1-nano": {
-      "prices": {
-        "standard": {
-          "input": 0.1,
-          "cached_input": 0.025,
-          "output": 0.4,
-          "cache_write_30m": null,
-          "cache_write_12h": null,
-          "long": null
-        },
-        "batch": {
-          "input": 0.05,
-          "cached_input": null,
-          "output": 0.2,
-          "cache_write_30m": null,
-          "cache_write_12h": null,
-          "long": null
-        },
-        "fast": {
-          "input": 0.2,
-          "cached_input": 0.05,
-          "output": 0.8,
-          "cache_write_30m": null,
-          "cache_write_12h": null,
-          "long": null
-        }
-      },
-      "price_note": null,
+      "prices": {},
+      "price_note": "Deprecated: no longer listed on OpenAI's pricing page.",
       "limits": {
         "context_window": 1047576,
         "max_input": null,
@@ -1095,41 +1070,8 @@
       }
     },
     "o4-mini": {
-      "prices": {
-        "standard": {
-          "input": 1.1,
-          "cached_input": 0.275,
-          "output": 4.4,
-          "cache_write_30m": null,
-          "cache_write_12h": null,
-          "long": null
-        },
-        "batch": {
-          "input": 0.55,
-          "cached_input": null,
-          "output": 2.2,
-          "cache_write_30m": null,
-          "cache_write_12h": null,
-          "long": null
-        },
-        "flex": {
-          "input": 0.55,
-          "cached_input": 0.138,
-          "output": 2.2,
-          "cache_write_30m": null,
-          "cache_write_12h": null,
-          "long": null
-        },
-        "fast": {
-          "input": 2.0,
-          "cached_input": 0.5,
-          "output": 8.0,
-          "cache_write_30m": null,
-          "cache_write_12h": null,
-          "long": null
-        }
-      },
-      "price_note": null,
+      "prices": {},
+      "price_note": "Deprecated: no longer listed on OpenAI's pricing page.",
       "limits": {
         "context_window": 200000,
         "max_input": null,
@@ -1137,25 +1079,8 @@
       }
     },
     "o3-mini": {
-      "prices": {
-        "standard": {
-          "input": 1.1,
-          "cached_input": 0.55,
-          "output": 4.4,
-          "cache_write_30m": null,
-          "cache_write_12h": null,
-          "long": null
-        },
-        "batch": {
-          "input": 0.55,
-          "cached_input": null,
-          "output": 2.2,
-          "cache_write_30m": null,
-          "cache_write_12h": null,
-          "long": null
-        }
-      },
-      "price_note": null,
+      "prices": {},
+      "price_note": "Deprecated: no longer listed on OpenAI's pricing page.",
       "limits": {
         "context_window": 200000,
         "max_input": null,
@@ -1163,25 +1088,8 @@
       }
     },
     "o1": {
-      "prices": {
-        "standard": {
-          "input": 15.0,
-          "cached_input": 7.5,
-          "output": 60.0,
-          "cache_write_30m": null,
-          "cache_write_12h": null,
-          "long": null
-        },
-        "batch": {
-          "input": 7.5,
-          "cached_input": null,
-          "output": 30.0,
-          "cache_write_30m": null,
-          "cache_write_12h": null,
-          "long": null
-        }
-      },
-      "price_note": null,
+      "prices": {},
+      "price_note": "Deprecated: no longer listed on OpenAI's pricing page.",
       "limits": {
         "context_window": 200000,
         "max_input": null,
@@ -1189,25 +1097,8 @@
       }
     },
     "o1-pro": {
-      "prices": {
-        "standard": {
-          "input": 150.0,
-          "cached_input": null,
-          "output": 600.0,
-          "cache_write_30m": null,
-          "cache_write_12h": null,
-          "long": null
-        },
-        "batch": {
-          "input": 75.0,
-          "cached_input": null,
-          "output": 300.0,
-          "cache_write_30m": null,
-          "cache_write_12h": null,
-          "long": null
-        }
-      },
-      "price_note": null,
+      "prices": {},
+      "price_note": "Deprecated: no longer listed on OpenAI's pricing page.",
       "limits": {
         "context_window": 200000,
         "max_input": null,
@@ -1224,25 +1115,8 @@
       }
     },
     "gpt-4-turbo": {
-      "prices": {
-        "standard": {
-          "input": 10.0,
-          "cached_input": null,
-          "output": 30.0,
-          "cache_write_30m": null,
-          "cache_write_12h": null,
-          "long": null
-        },
-        "batch": {
-          "input": 5.0,
-          "cached_input": null,
-          "output": 15.0,
-          "cache_write_30m": null,
-          "cache_write_12h": null,
-          "long": null
-        }
-      },
-      "price_note": "Priced as gpt-4-turbo-2024-04-09, the snapshot the gpt-4-turbo alias points to.",
+      "prices": {},
+      "price_note": "Deprecated: no longer listed on OpenAI's pricing page.",
       "limits": {
         "context_window": 128000,
         "max_input": null,
@@ -1250,25 +1124,8 @@
       }
     },
     "gpt-4": {
-      "prices": {
-        "standard": {
-          "input": 30.0,
-          "cached_input": null,
-          "output": 60.0,
-          "cache_write_30m": null,
-          "cache_write_12h": null,
-          "long": null
-        },
-        "batch": {
-          "input": 15.0,
-          "cached_input": null,
-          "output": 30.0,
-          "cache_write_30m": null,
-          "cache_write_12h": null,
-          "long": null
-        }
-      },
-      "price_note": "Priced as gpt-4-0613, the snapshot the gpt-4 alias points to.",
+      "prices": {},
+      "price_note": "Deprecated: no longer listed on OpenAI's pricing page.",
       "limits": {
         "context_window": 8192,
         "max_input": null,
@@ -1281,17 +1138,8 @@
       "limits": null
     },
     "gpt-3.5-turbo": {
-      "prices": {
-        "standard": {
-          "input": 0.5,
-          "cached_input": null,
-          "output": 1.5,
-          "cache_write_30m": null,
-          "cache_write_12h": null,
-          "long": null
-        }
-      },
-      "price_note": null,
+      "prices": {},
+      "price_note": "Deprecated: no longer listed on OpenAI's pricing page.",
       "limits": {
         "context_window": 16385,
         "max_input": null,

@@ -25,7 +25,7 @@ PACKAGE_DIR = Path(__file__).parent
 STATIC_DIR = PACKAGE_DIR / "static"
 templates = Jinja2Templates(directory=PACKAGE_DIR / "templates")
 # Swagger UI is vendored like Alpine.js, so the API docs work offline.
-SWAGGER_UI = "/static/vendor/swagger-ui-dist-5.34.0"
+SWAGGER_UI = "/static/vendor/swagger-ui-dist-5.34.1"
 
 router = APIRouter()
 

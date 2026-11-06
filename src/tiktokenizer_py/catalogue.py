@@ -71,7 +71,13 @@ CHAT_VARIANTS: dict[str, str] = {chat_variant_name(b): b for b in CHAT_VARIANT_S
 
 # OpenAI model ids that tiktoken cannot map yet. A test asserts they still raise KeyError, so a
 # tiktoken release that maps them is noticed and they can move into CURRENT_MODELS.
-KNOWN_UNMAPPED: tuple[str, ...] = ("gpt-6-astra", "gpt-6.1-sol", "gpt-6-luna", "gpt-6-sol")
+KNOWN_UNMAPPED: tuple[str, ...] = (
+    "gpt-6-astra",
+    "gpt-6.1-sol",
+    "gpt-6.1-terra",
+    "gpt-6-luna",
+    "gpt-6-sol",
+)
 
 # (model id, chat family), newest first.
 CURRENT_MODELS: tuple[tuple[str, ChatFamily | None], ...] = (

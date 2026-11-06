@@ -206,9 +206,9 @@ parser expects, and only then replaces the prices and lists how many changed. If
 current prices stay and the page lists the problems. After a successful fetch the button waits 10 minutes before it
 works again, after a failed one 30 seconds. Fetched prices are saved in `APP_DATA_DIR` and survive restarts.
 
-A few models need hand-kept corrections, for example aliases that OpenAI prices under a dated name (`gpt-4` as
-`gpt-4-0613`) and models OpenAI no longer prices. Those models show a short note instead of, or next to, the
-prices.
+A few models need hand-kept corrections, for example models OpenAI no longer prices, open-weight models without
+an API price, and embedding models whose input limit is only on the embeddings guide. Those models show a short
+note instead of, or next to, the prices.
 
 ## Sharing and copying
 

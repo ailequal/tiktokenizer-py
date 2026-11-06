@@ -2,12 +2,10 @@
   "_comment": "Hand-kept corrections to OpenAI's pricing and model pages. See prices.py.",
   "models": {
     "gpt-4": {
-      "price_from": "gpt-4-0613",
-      "note": "Priced as gpt-4-0613, the snapshot the gpt-4 alias points to."
+      "no_price": "Deprecated: no longer listed on OpenAI's pricing page."
     },
     "gpt-4-turbo": {
-      "price_from": "gpt-4-turbo-2024-04-09",
-      "note": "Priced as gpt-4-turbo-2024-04-09, the snapshot the gpt-4-turbo alias points to."
+      "no_price": "Deprecated: no longer listed on OpenAI's pricing page."
     },
     "gpt-oss-120b": {
       "no_price": "Open-weight model: you run it yourself or through another provider, so OpenAI lists no API price."
@@ -47,6 +45,24 @@
         "max_input": 8192
       },
       "limits_source": "https://developers.openai.com/api/docs/guides/embeddings"
+    },
+    "gpt-4.1-nano": {
+      "no_price": "Deprecated: no longer listed on OpenAI's pricing page."
+    },
+    "o4-mini": {
+      "no_price": "Deprecated: no longer listed on OpenAI's pricing page."
+    },
+    "o3-mini": {
+      "no_price": "Deprecated: no longer listed on OpenAI's pricing page."
+    },
+    "o1": {
+      "no_price": "Deprecated: no longer listed on OpenAI's pricing page."
+    },
+    "o1-pro": {
+      "no_price": "Deprecated: no longer listed on OpenAI's pricing page."
+    },
+    "gpt-3.5-turbo": {
+      "no_price": "Deprecated: no longer listed on OpenAI's pricing page."
     }
   },
   "retired": [
