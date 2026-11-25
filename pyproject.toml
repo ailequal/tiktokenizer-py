@@ -1,6 +1,6 @@
 [project]
 name = "tiktokenizer-py"
-version = "1.0.1"
+version = "1.0.2"
 description = "Web playground for OpenAI tiktoken tokenizers"
 readme = "README.md"
 license = "MIT"
