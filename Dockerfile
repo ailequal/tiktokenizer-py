@@ -5,8 +5,8 @@
 #
 # Builder and runtime start from the same Python image digest, so the virtual environment
 # copied between them points at the same interpreter path.
-ARG PYTHON_IMAGE=python:3.14-slim-trixie@sha256:af8a5aa14780025dbfbcfbc81bd8a91ebd87711dd5b0f48ed71090949dd7cb1d
-ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490
+ARG PYTHON_IMAGE=python:3.14-slim-trixie@sha256:22eafb370920ad8b429e0aec3fff433e0669968519f5d60469d83729c138b28b
+ARG UV_IMAGE=ghcr.io/astral-sh/uv:0.13.10@sha256:a3ea1357342c1a4bf9a0c53a3deb1b55379aefa037338d8113d5771efa01774f
 
 FROM ${UV_IMAGE} AS uv
 

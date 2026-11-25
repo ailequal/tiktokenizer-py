@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Updated FastAPI to 0.165.0, pydantic to 2.14.4, regex to 2026.11.24 and the remaining locked dependencies to their
+  latest releases.
+- Updated the vendored Swagger UI to 5.36.0.
+- Updated the Docker base images to the Debian 13.8 build of Python 3.14.10 and to uv 0.13.10.
+
 ## [1.0.1] - 2026-11-06
 
 ### Changed
